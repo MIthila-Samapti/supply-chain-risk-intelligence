@@ -34,9 +34,11 @@ already carrying promotion, holiday, and oil-price context. See
    using rolling z-scores on a seasonal baseline, cross-checked with PELT
    change-point detection (`ruptures`) on each store/category series. See
    `notebooks/01_disruption_detection.ipynb`.
-2. **Composite risk scoring** — combine disruption frequency/severity with
-   an external volatility proxy (oil price volatility) into a single risk
-   score per store/category.
+2. **Composite risk scoring** (done) — percentile-rank the shock rate,
+   average shock severity, and change-point rate per store/category,
+   blend with an oil-price-volatility macro overlay, into one 0-100
+   composite risk score per store/category/day. See
+   `notebooks/02_composite_risk_scoring.ipynb`.
 3. **Risk-adjusted inventory** — extend the safety-stock formula from the
    demand-forecasting project with a risk multiplier, so higher-risk
    categories carry more buffer stock, and quantify the cost/service-level
@@ -62,6 +64,26 @@ a forecast. It's also why the risk summary is windowed to the most recent
 90 days rather than all-time history, so an old structural break like
 this one doesn't drown out current risk. See the notebook for the full
 walkthrough.
+
+## Results so far (Phase 2)
+
+The composite score is a continuous, rolling number, not a one-time
+snapshot, which made it possible to sanity-check it against Phase 1's
+own finding: for Store 51 / PRODUCE, the score jumps from its baseline
+into the 80s-90s within two weeks of the known January 2014 disruption
+and stays elevated for roughly the following 90 days, exactly the
+trailing-window behavior it should show. That's the check that the score
+is tracking real signal, not just noise.
+
+As of the most recent date in the data, the highest-risk store/category
+pairs are led by Store 49 - POULTRY (composite score ~52), driven mostly
+by elevated average shock severity rather than shock frequency, since
+most series had no shocks at all in their most recent 90-day window —
+worth knowing, because it means the current ranking is more a "which
+categories are noisiest right now" signal than a "which categories are
+actively disrupted right now" signal. See
+`reports/latest_risk_ranking.csv` for the full ranking and
+`reports/composite_risk_history.csv` for the full daily time series.
 
 ## Project structure
 
