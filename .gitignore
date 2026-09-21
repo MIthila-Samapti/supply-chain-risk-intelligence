@@ -1,0 +1,23 @@
+# Data (large raw files aren't meant for git)
+data/raw/*
+!data/raw/.gitkeep
+
+# Local reference copies from the demand-forecasting project — not part of this repo
+reference/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+venv/
+.venv/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Kaggle / secrets
+kaggle.json
