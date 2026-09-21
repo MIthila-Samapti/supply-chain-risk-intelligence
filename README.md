@@ -27,11 +27,13 @@ demand-forecasting project (10 stores, 8 product families, 2013-2017),
 already carrying promotion, holiday, and oil-price context. See
 `data/README.md`.
 
-## Methodology (in progress)
+## Methodology
 
-1. **Disruption detection** — flag demand shocks in the daily sales series
-   that aren't explained by known promotions or holidays, using rolling
-   z-scores and change-point detection (`ruptures`) as a cross-check.
+1. **Disruption detection** (done) — flag demand shocks in the daily
+   sales series that aren't explained by known promotions or holidays,
+   using rolling z-scores on a seasonal baseline, cross-checked with PELT
+   change-point detection (`ruptures`) on each store/category series. See
+   `notebooks/01_disruption_detection.ipynb`.
 2. **Composite risk scoring** — combine disruption frequency/severity with
    an external volatility proxy (oil price volatility) into a single risk
    score per store/category.
@@ -42,6 +44,25 @@ already carrying promotion, holiday, and oil-price context. See
 4. **Reporting** — tidy exports for Tableau/Power BI and a summary
    dashboard, same pattern as the first project.
 
+## Results so far (Phase 1)
+
+Across 133,096 store/category/day observations (10 stores x 8 categories,
+2013-2017): 912 unexplained demand shocks flagged (0.7%), and 332 change
+points detected where a series' underlying demand level shifted.
+
+The change points weren't evenly spread — PRODUCE accounted for most of
+the top hits. Investigating why turned up a real, large discontinuity:
+unit sales for PRODUCE jump from roughly 10-50 units/day to roughly
+4,000-8,000 units/day almost overnight on January 2, 2014, consistently
+across nearly every store. The most likely explanation is the store
+network expanding its tracked produce assortment around that date, not
+an actual 250x jump in demand — exactly the kind of thing this layer is
+meant to surface for a human to verify, rather than silently absorb into
+a forecast. It's also why the risk summary is windowed to the most recent
+90 days rather than all-time history, so an old structural break like
+this one doesn't drown out current risk. See the notebook for the full
+walkthrough.
+
 ## Project structure
 
 ```
@@ -51,6 +72,10 @@ reports/        result exports and figures
 tests/          unit tests (pytest)
 data/           processed data (raw data, if any is added, is not committed)
 ```
+
+## Figures
+
+![Disruption detection summary](reports/figures/dashboard_summary.png)
 
 ## Setup
 
