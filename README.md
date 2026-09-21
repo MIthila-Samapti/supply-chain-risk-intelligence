@@ -39,12 +39,13 @@ already carrying promotion, holiday, and oil-price context. See
    blend with an oil-price-volatility macro overlay, into one 0-100
    composite risk score per store/category/day. See
    `notebooks/02_composite_risk_scoring.ipynb`.
-3. **Risk-adjusted inventory** — extend the safety-stock formula from the
-   demand-forecasting project with a risk multiplier, so higher-risk
-   categories carry more buffer stock, and quantify the cost/service-level
-   trade-off versus a risk-blind policy.
-4. **Reporting** — tidy exports for Tableau/Power BI and a summary
-   dashboard, same pattern as the first project.
+3. **Risk-adjusted inventory** (done) — safety stock scales day-by-day
+   with the composite risk score (up to 50% more buffer at a risk score
+   of 100), and I simulated a risk-blind vs. risk-adjusted replenishment
+   policy across the full history to see what that actually costs. See
+   `notebooks/03_risk_adjusted_inventory.ipynb`.
+4. **Reporting** (done) — tidy exports in `reports/tableau_export/` for
+   Tableau/Power BI, same pattern as the first project.
 
 ## Results so far (Phase 1)
 
@@ -85,6 +86,22 @@ actively disrupted right now" signal. See
 `reports/latest_risk_ranking.csv` for the full ranking and
 `reports/composite_risk_history.csv` for the full daily time series.
 
+## Results so far (Phase 3)
+
+Store-level forecast error isn't available (the original backtest was
+family-level only), so I allocated each family's error down to stores by
+volume share, noted as an approximation rather than a measured number.
+
+Across all 80 store/category series, the risk-adjusted policy cuts
+stockout cost by about 41% and raises holding cost by about 16%,
+netting out to roughly 8% higher total illustrative cost than the
+risk-blind policy. It's not a free win — it's a real trade-off: better
+service level in exchange for carrying more buffer through years of
+mostly-quiet data to be ready for the handful of actual disruption
+episodes. Whether that trade is worth it depends on a company's real
+stockout cost vs. holding cost, not the illustrative $2.00/$0.05 figures
+used here. See `reports/risk_adjusted_inventory_comparison.csv`.
+
 ## Project structure
 
 ```
@@ -98,6 +115,10 @@ data/           processed data (raw data, if any is added, is not committed)
 ## Figures
 
 ![Disruption detection summary](reports/figures/dashboard_summary.png)
+
+![Current risk ranking](reports/figures/risk_ranking.png)
+
+![Risk-blind vs. risk-adjusted policy comparison](reports/figures/policy_comparison.png)
 
 ## Setup
 
