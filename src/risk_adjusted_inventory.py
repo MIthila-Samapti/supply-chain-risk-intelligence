@@ -2,19 +2,17 @@
 Risk-adjusted safety stock and reorder points.
 
 Same newsvendor math as the demand-forecasting project's inventory.py,
-but the safety stock isn't fixed anymore -- it scales up and down with
-the composite risk score from Phase 2, so a category currently flagged
-as higher-risk carries more buffer, and calms back down once its risk
-score drops.
+except safety stock isn't fixed anymore - it scales up with the
+composite risk score from Phase 2, so a category flagged higher-risk
+right now carries more buffer and calms back down once the score drops.
 
-Forecast error (sigma) in the original project was only computed at the
-family level (summed across all 10 stores), not per store. To get a
-per-store sigma without redoing that backtest, I allocate the family
-sigma across stores by each store's share of family demand, assuming
+One wrinkle: forecast error (sigma) in the original project was only
+ever computed at the family level (summed across all 10 stores), not
+per store. Rather than redo that backtest, I allocate family sigma
+across stores by each store's share of family demand, assuming
 store-level errors are roughly independent so variance scales with
 volume share (store_sigma ~= family_sigma * sqrt(store_share)). That's
-an approximation, not a measured number -- noted here and in the
-notebook.
+an approximation, not a measured number - flagged here and in the notebook.
 """
 
 import numpy as np
@@ -30,12 +28,9 @@ STOCKOUT_COST_PER_UNIT = 2.00
 
 
 def allocate_sigma_to_stores(panel, family_sigma):
-    """
-    family_sigma: DataFrame with columns family, sigma_daily (family-level
-    forecast error std, from the demand-forecasting project's backtest).
-
-    Returns a DataFrame with store_nbr, family, sigma_store.
-    """
+    # family_sigma: DataFrame with columns family, sigma_daily
+    # (family-level forecast error std, from the demand-forecasting
+    # project's backtest). returns store_nbr, family, sigma_store.
     totals = (
         panel.groupby(["store_nbr", "family"])["unit_sales"].sum().rename("store_total").reset_index()
     )
@@ -53,21 +48,18 @@ def base_safety_stock(sigma, lead_time=LEAD_TIME_DAYS, service_level=SERVICE_LEV
 
 
 def risk_multiplier(risk_score, uplift_cap=RISK_UPLIFT_CAP):
-    """risk_score expected 0-100. 1.0 at score 0, 1+uplift_cap at score 100."""
+    # risk_score 0-100 -> multiplier 1.0 at score 0, 1+uplift_cap at score 100
     risk_score = np.nan_to_num(risk_score, nan=0.0)
     return 1.0 + uplift_cap * (risk_score / 100.0)
 
 
 def simulate_policy(dates, actual, forecast, sigma, risk_scores=None, lead_time=LEAD_TIME_DAYS,
                      service_level=SERVICE_LEVEL, uplift_cap=RISK_UPLIFT_CAP):
-    """
-    Daily-review, order-up-to-reorder-point simulation, same mechanics as
-    the demand-forecasting project's simulate_policy. The difference:
-    if `risk_scores` is given, the safety stock and reorder point are
-    recalculated every day from that day's risk score instead of being
-    fixed for the whole run. Pass risk_scores=None (or an all-zero array)
-    to get the risk-blind baseline for comparison.
-    """
+    # same daily-review, order-up-to-reorder-point sim as the
+    # demand-forecasting project. difference: if risk_scores is given,
+    # safety stock + reorder point get recalculated every day from that
+    # day's score instead of staying fixed. pass risk_scores=None for
+    # the risk-blind baseline.
     n = len(actual)
     base_ss = base_safety_stock(sigma, lead_time, service_level)
 
@@ -125,11 +117,9 @@ def simulate_policy(dates, actual, forecast, sigma, risk_scores=None, lead_time=
 
 
 def compare_policies(df, sigma, lead_time=LEAD_TIME_DAYS, service_level=SERVICE_LEVEL, uplift_cap=RISK_UPLIFT_CAP):
-    """
-    df needs columns: date, unit_sales (actual), expected_sales (forecast),
-    composite_risk_score. Runs the risk-blind and risk-adjusted policies
-    over the same series and returns both results plus the delta.
-    """
+    # needs columns: date, unit_sales (actual), expected_sales (forecast),
+    # composite_risk_score. runs both policies on the same series, returns
+    # both plus the delta.
     d = df.dropna(subset=["expected_sales", "composite_risk_score"]).sort_values("date")
     dates = d["date"].values
     actual = d["unit_sales"].values
