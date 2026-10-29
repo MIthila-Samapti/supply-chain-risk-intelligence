@@ -1,12 +1,11 @@
 """
 Composite disruption risk scoring.
 
-Combines the Phase 1 disruption signals (unexplained shocks, change
-points) with an external macro volatility proxy (oil price volatility)
-into a single 0-100 risk score per store/category/day. This is a
-continuous, rolling score — not a one-time snapshot — so it can show how
-risk moves over time and feed the risk-adjusted inventory policy in the
-next phase.
+Combines the Phase 1 signals (unexplained shocks, change points) with
+an external macro volatility proxy (oil price volatility) into one
+0-100 risk score per store/category/day. Rolling, not a one-time
+snapshot - shows how risk moves over time and feeds the risk-adjusted
+inventory policy in the next phase.
 """
 
 import numpy as np
@@ -21,10 +20,7 @@ DEFAULT_WEIGHTS = {
 
 
 def add_changepoint_indicator(panel, changepoints):
-    """
-    Adds a boolean `is_changepoint` column to `panel`: True on the exact
-    date a change point was detected for that store/family.
-    """
+    # True on the exact date a change point was detected for that store/family
     cp_flags = changepoints.copy()
     cp_flags["date"] = pd.to_datetime(cp_flags["date"])
     cp_flags["is_changepoint"] = True
@@ -36,14 +32,10 @@ def add_changepoint_indicator(panel, changepoints):
 
 
 def compute_oil_volatility(panel, window_days=90, min_periods=30):
-    """
-    Oil price is a single national daily series (repeated across every
-    store/category row), so this pulls the distinct date/oil_price
-    series and computes a trailing rolling standard deviation of the
-    daily percent change — a standard macro volatility proxy.
-
-    Returns a DataFrame with one row per date: `date`, `oil_volatility`.
-    """
+    # oil price is one national daily series repeated across every
+    # store/category row, so pull the distinct date/price series and
+    # take a trailing rolling std of the daily pct change - standard
+    # macro volatility proxy. returns one row per date.
     oil = panel[["date", "oil_price"]].drop_duplicates("date").sort_values("date")
     oil["oil_pct_change"] = oil["oil_price"].pct_change()
     oil["oil_volatility"] = (
@@ -53,13 +45,9 @@ def compute_oil_volatility(panel, window_days=90, min_periods=30):
 
 
 def compute_rolling_features(shocks_df, changepoints, panel, window_days=90, min_periods=30):
-    """
-    Builds the rolling feature table the composite score is computed
-    from: trailing shock rate, trailing average shock severity, trailing
-    change-point rate (all per store/category), plus oil price
-    volatility (a macro overlay shared across every store/category on a
-    given date).
-    """
+    # feature table the composite score is built from: trailing shock
+    # rate, trailing avg shock severity, trailing change-point rate (all
+    # per store/category), plus oil volatility as a shared macro overlay
     df = add_changepoint_indicator(shocks_df, changepoints)
 
     grp = df.groupby(["store_nbr", "family"])
@@ -80,13 +68,10 @@ def compute_rolling_features(shocks_df, changepoints, panel, window_days=90, min
 
 
 def compute_composite_risk_score(df, weights=None):
-    """
-    Percentile-ranks each of the four risk features across the full
-    dataset (robust to skewed distributions like shock counts, unlike
-    min-max scaling), combines them with `weights` into one 0-100
-    composite risk score, and adds the percentile columns alongside it
-    for transparency.
-    """
+    # percentile-ranks each risk feature across the dataset (holds up
+    # better than min-max scaling against skewed stuff like shock
+    # counts), combines with `weights` into one 0-100 score, keeps the
+    # percentile columns around too for transparency
     weights = weights or DEFAULT_WEIGHTS
     df = df.copy()
 
@@ -104,11 +89,8 @@ def compute_composite_risk_score(df, weights=None):
 
 
 def latest_risk_ranking(scored_df):
-    """
-    Returns one row per store/category — its most recent composite risk
-    score — sorted highest risk first. This is the "so what" view: which
-    store/category combinations are the highest-risk to stock right now.
-    """
+    # one row per store/category, most recent score, highest risk first
+    # - the "so what" view of what's riskiest to stock right now
     latest = scored_df.sort_values("date").groupby(["store_nbr", "family"]).tail(1)
     cols = ["store_nbr", "family", "date", "shock_rate", "avg_abs_z", "changepoint_rate",
             "oil_volatility", "composite_risk_score"]
