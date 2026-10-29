@@ -2,14 +2,11 @@
 Disruption detection for the supply chain risk intelligence project.
 
 Flags demand shocks in the daily sales panel that aren't explained by
-known promotions or holidays, using two complementary signals:
-
-  1. A rolling seasonal baseline + z-score on the residual (fast, easy to
-     explain, runs on every row).
-  2. Change-point detection (ruptures) on each store/family's residual
-     series, to catch sustained shifts a single-day z-score would miss.
-
-Both feed into the composite risk score built in the next phase.
+known promos or holidays, with two signals: a rolling seasonal
+baseline + z-score on the residual (fast, easy to explain), and
+change-point detection (ruptures) per store/family to catch sustained
+shifts a single-day z-score would miss. Both feed the composite risk
+score in the next phase.
 """
 
 import numpy as np
@@ -24,13 +21,11 @@ def load_panel(path):
 
 
 def add_seasonal_baseline(df, window_weeks=8, min_periods=3):
-    """
-    Adds an `expected_sales` column: the trailing median of unit_sales for
-    the same store/family/day-of-week, over the last `window_weeks`
-    occurrences (not counting the current day). This is a rolling version
-    of the seasonal-naive baseline from the demand-forecasting project —
-    it updates week by week instead of being fixed at one cutoff date.
-    """
+    # trailing median of unit_sales for the same store/family/day-of-week
+    # over the last `window_weeks` occurrences (excluding the current
+    # day). rolling version of the seasonal-naive baseline from the
+    # demand-forecasting project - updates week by week instead of
+    # being pinned to one cutoff date
     df = df.copy()
     df["dow"] = df["date"].dt.dayofweek
 
@@ -48,12 +43,9 @@ def compute_residuals(df):
 
 
 def flag_shocks(df, z_window=90, z_thresh=3.0, min_periods=20):
-    """
-    Flags unexplained demand shocks: residuals more than `z_thresh` rolling
-    standard deviations from zero, on days with no promotion and no
-    holiday. Shocks that coincide with a known driver (promo/holiday)
-    are not flagged as disruptions — they already have an explanation.
-    """
+    # flags residuals more than z_thresh rolling std devs from zero, on
+    # days with no promo and no holiday. shocks that line up with a
+    # known driver aren't flagged - they're already explained
     df = df.copy()
     grp = df.groupby(["store_nbr", "family"])["residual"]
     roll_mean = grp.transform(lambda s: s.shift(1).rolling(z_window, min_periods=min_periods).mean())
@@ -69,17 +61,12 @@ def flag_shocks(df, z_window=90, z_thresh=3.0, min_periods=20):
 
 
 def detect_changepoints(df, model="l2", penalty_mult=5.0, min_size=21, min_obs=60):
-    """
-    Runs PELT change-point detection on each store/family's residual
-    series, using an adaptive BIC-style penalty (penalty_mult * log(n) *
-    variance) rather than one fixed threshold — necessary because
-    different store/family series have very different demand scales
-    (e.g. PRODUCE vs. CLEANING), so a single fixed penalty would be far
-    too sensitive for some series and not sensitive enough for others.
-    Returns one row per detected change point (a date where the
-    underlying demand pattern shifted, not explained by a single-day
-    shock).
-    """
+    # PELT change-point detection per store/family, with an adaptive
+    # BIC-style penalty (penalty_mult * log(n) * variance) instead of
+    # one fixed threshold - PRODUCE and CLEANING are on totally
+    # different demand scales, so a fixed penalty would be way too
+    # sensitive for one and not sensitive enough for the other.
+    # returns one row per detected change point.
     records = []
     for (store, family), g in df.groupby(["store_nbr", "family"]):
         g = g.dropna(subset=["residual"]).sort_values("date")
@@ -100,11 +87,8 @@ def detect_changepoints(df, model="l2", penalty_mult=5.0, min_size=21, min_obs=6
 
 
 def summarize_disruption_risk(shocks_df, changepoints_df, window_days=90):
-    """
-    Aggregates the shock and change-point signals into a per
-    store/family risk summary over the most recent `window_days` of data.
-    This is the feature table the Phase 2 composite risk score builds on.
-    """
+    # rolls the shock + change-point signals up into a per store/family
+    # summary over the last window_days - feeds the Phase 2 composite score
     cutoff = shocks_df["date"].max() - pd.Timedelta(days=window_days)
     recent = shocks_df[shocks_df["date"] >= cutoff]
 
